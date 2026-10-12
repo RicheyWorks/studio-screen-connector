@@ -1,0 +1,18 @@
+[
+ {
+  "hwnd": 101,
+  "title": "Claude",
+  "process": "claude",
+  "width": 1200,
+  "height": 900,
+  "minimized": false
+ },
+ {
+  "hwnd": 201,
+  "title": "MyLevel - Unreal Editor",
+  "process": "UnrealEditor",
+  "width": 2560,
+  "height": 1400,
+  "minimized": false
+ }
+]

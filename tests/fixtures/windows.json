@@ -1,0 +1,82 @@
+[
+ {
+  "hwnd": 101,
+  "title": "Claude",
+  "process": "claude",
+  "width": 1200,
+  "height": 900,
+  "minimized": false
+ },
+ {
+  "hwnd": 102,
+  "title": "Claude",
+  "process": "claude",
+  "width": 300,
+  "height": 200,
+  "minimized": false
+ },
+ {
+  "hwnd": 201,
+  "title": "MyLevel - Unreal Editor",
+  "process": "UnrealEditor",
+  "width": 2560,
+  "height": 1400,
+  "minimized": false
+ },
+ {
+  "hwnd": 202,
+  "title": "Message Log",
+  "process": "UnrealEditor",
+  "width": 600,
+  "height": 300,
+  "minimized": false
+ },
+ {
+  "hwnd": 301,
+  "title": "Blender [C:\\art\\ship.blend]",
+  "process": "blender",
+  "width": 1920,
+  "height": 1080,
+  "minimized": true
+ },
+ {
+  "hwnd": 401,
+  "title": "Bitwarden",
+  "process": "Bitwarden",
+  "width": 800,
+  "height": 600,
+  "minimized": false
+ },
+ {
+  "hwnd": 402,
+  "title": "Inbox - Gmail - Google Chrome",
+  "process": "chrome",
+  "width": 1600,
+  "height": 1000,
+  "minimized": false
+ },
+ {
+  "hwnd": 403,
+  "title": "Claude password reset - Notepad",
+  "process": "notepad",
+  "width": 700,
+  "height": 500,
+  "minimized": false
+ },
+ {
+  "hwnd": 404,
+  "title": "Claude",
+  "process": "claudeimposter",
+  "width": 3000,
+  "height": 2000,
+  "minimized": false
+ },
+ {
+  "hwnd": 405,
+  "title": "Claude - password vault",
+  "process": "claude",
+  "width": 500,
+  "height": 400,
+  "minimized": false
+ }
+]
