@@ -73,7 +73,7 @@ function Get-StopReason($cfg, [double]$playMin, [int]$ready, [double]$waitMin) {
 
 function Send-TeamNote($cfg, [string]$text) {
     try {
-        $body = @{ from = [string]$cfg.from; to = "*"; type = "note"; text = $text } | ConvertTo-Json -Compress
+        $body = @{ from = [string]$cfg.from; to = "all"; type = "note"; body = @{ text = $text } } | ConvertTo-Json -Compress -Depth 4
         Invoke-RestMethod -Method Post -Uri ([string]$cfg.teamlink_url) -Body $body -ContentType "application/json" -TimeoutSec 3 | Out-Null
         return $true
     } catch { return $false }

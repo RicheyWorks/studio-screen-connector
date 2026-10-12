@@ -124,8 +124,9 @@ def cases():
         ("PIE long + READY rows: stop, log, note", dict(art="ready", play_ago=9),
          lambda r: stopped(r) and "playguard stopped Play" in r["log"] and "READY" in r["log"]
                    and len(r["posts"]) == 1 and r["posts"][0]["path"] == "/send"
-                   and r["posts"][0]["body"].get("from") == "2hot2trot" and r["posts"][0]["body"].get("to") == "*"
-                   and r["posts"][0]["body"].get("type") == "note" and "auto-stopped" in r["posts"][0]["body"].get("text", "")),
+                   and r["posts"][0]["body"].get("from") == "2hot2trot"
+                   and r["posts"][0]["body"].get("type") == "note" and r["posts"][0]["body"].get("to") == "all" and "text" not in r["posts"][0]["body"]
+                   and "auto-stopped" in (r["posts"][0]["body"].get("body") or {}).get("text", "")),
         ("QUEUE.md READY rows count too", dict(art="queue_ready", play_ago=9), stopped),
         ("PIE long, no READY rows (prose only): no stop", dict(art="idle", play_ago=30), not_stopped),
         ("polls with READ ping, not stop", dict(art="idle", play_ago=30), lambda r: r["requests"] == ["ping"]),
