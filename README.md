@@ -80,6 +80,7 @@ A window is touched only if **all** of these are true:
 - `contract`: JSON shape and window selection against `tests/fixtures/*.json`
 - `privacy`: every deny path is refused
 - `tidy`: tidy.ps1 close/keep decisions against `tests/fixtures/tidy_*.json`
+- `start`: tidy-start.ps1 -Status returns small JSON with log_tail as plain strings
 - `mutants`: the privacy and tidy suites must kill each mutation of their rules (results in `ledgers/mutants.json`)
 - `capture_live`: BLACKBEARD only (phase 2)
 

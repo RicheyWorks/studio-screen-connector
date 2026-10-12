@@ -1,12 +1,12 @@
 {
  "entries": {
   "privacy": {
-   "at": 1791837175,
+   "at": 1791837676,
    "equivalent": 0,
    "equivalents": [],
    "inconclusive": 0,
-   "killed": 10,
-   "mutants": 10,
+   "killed": 11,
+   "mutants": 11,
    "rows": [
     {
      "detail": "deny title wins even on allowlisted process, list never shows denylisted windows",
@@ -56,6 +56,11 @@
     {
      "detail": "closes listed floating panels, keeps an unowned window even if its title is listed, 'Message Log' is not treated as a di",
      "name": "tidy: Message Log exception dropped",
+     "verdict": "killed"
+    },
+    {
+     "detail": "log_tail lines are cast to [string] (PS 5.1 metadata bug)",
+     "name": "tidy-start: log_tail string cast dropped",
      "verdict": "killed"
     }
    ],
