@@ -1,0 +1,8 @@
+{
+ "entries": {
+  "claude":  {"live": "untested", "note": "fill from capture_live on BLACKBEARD"},
+  "unreal":  {"live": "untested"},
+  "blender": {"live": "untested"},
+  "screen":  {"live": "disabled by default"}
+ }
+}

@@ -1,0 +1,40 @@
+{
+ "entries": {
+  "privacy": {
+   "at": 1791822516,
+   "equivalent": 0,
+   "equivalents": [],
+   "inconclusive": 0,
+   "killed": 5,
+   "mutants": 5,
+   "rows": [
+    {
+     "detail": "deny title wins even on allowlisted process, list never shows denylisted windows",
+     "name": "drop denylist in Find-Rule",
+     "verdict": "killed"
+    },
+    {
+     "detail": "screen disabled even with no denylisted windows",
+     "name": "screen enabled ignored",
+     "verdict": "killed"
+    },
+    {
+     "detail": "process must match, not just title, -Process filter excludes other allowlisted apps, list never shows denylisted windows",
+     "name": "process match dropped",
+     "verdict": "killed"
+    },
+    {
+     "detail": "target not in allowlist",
+     "name": "unknown target allowed",
+     "verdict": "killed"
+    },
+    {
+     "detail": "screen refused while denylisted window visible",
+     "name": "deny check before screen dropped",
+     "verdict": "killed"
+    }
+   ],
+   "survived": 0
+  }
+ }
+}

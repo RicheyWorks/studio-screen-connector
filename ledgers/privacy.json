@@ -1,0 +1,53 @@
+{
+ "entries": {
+  "deny_paths": {
+   "at": 1791822479,
+   "cases": [
+    {
+     "name": "target not in allowlist",
+     "pass": true
+    },
+    {
+     "name": "denylisted hwnd (Bitwarden)",
+     "pass": true
+    },
+    {
+     "name": "denylisted hwnd (Gmail)",
+     "pass": true
+    },
+    {
+     "name": "deny title wins over allow-ish title",
+     "pass": true
+    },
+    {
+     "name": "process must match, not just title",
+     "pass": true
+    },
+    {
+     "name": "deny title wins even on allowlisted process",
+     "pass": true
+    },
+    {
+     "name": "screen disabled by default",
+     "pass": true
+    },
+    {
+     "name": "screen disabled even with no denylisted windows",
+     "pass": true
+    },
+    {
+     "name": "-Process filter excludes other allowlisted apps",
+     "pass": true
+    },
+    {
+     "name": "screen refused while denylisted window visible",
+     "pass": true
+    },
+    {
+     "name": "list never shows denylisted windows",
+     "pass": true
+    }
+   ]
+  }
+ }
+}
