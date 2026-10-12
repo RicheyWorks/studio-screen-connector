@@ -4,7 +4,7 @@ import io
 import os
 import tempfile
 
-from . import playguard_suite, privacy, start_suite, tidy_suite
+from . import crashguard_suite, playguard_suite, privacy, start_suite, tidy_suite
 from .ledger import ROOT
 
 MUTANTS = [
@@ -56,7 +56,24 @@ PG_MUTANTS = [
 ]
 
 
+CG_MUTANTS = [
+    ("crashguard: enabled check dropped", 'if ($cfg.enabled -ne $true) { return @{ action = "disabled" } }', ""),
+    ("crashguard: crash needs log evidence dropped", "if ($crc.Count -gt 0 -and $logCrashed)", "if ($crc.Count -gt 0)"),
+    ("crashguard: live editor guard dropped", 'if ($ed.Count -gt 0) { return "none" }', ""),
+    ("crashguard: build-tools guard dropped", 'if ($build.Count -gt 0) { return "busy_build" }', ""),
+    ("crashguard: -d3d11 threshold ignored", "if ($crashes -ge [int]$cfg.d3d11_after_crashes)", "if ($false)"),
+    ("crashguard: crash window ignored", "($now - [datetime]$_).TotalMinutes -le $win", "$true"),
+    ("crashguard: UTF-16 sniff dropped", "($b[1] -eq 0 -or ($b[0] -eq 0xFF -and $b[1] -eq 0xFE))", "$false"),
+    ("crashguard: RestoreEnabled check dropped", "$j.RestoreEnabled -ne $true", "-not $j"),
+    ("crashguard: restore json not renamed", 'Rename-Item (Join-Rel $auto "PackageRestoreData.json")', "Write-Output (Join-Rel $auto"),
+    ("crashguard: no backup of overwritten content", "Copy-Item $it.dst $b -Force", "$null = $b"),
+    ("crashguard: CRC not killed", "Stop-Ids ($crc + $ed) $fake $acts", "Stop-Ids ($ed) $fake $acts"),
+    ("crashguard: no BLOCKED note", '[void](Send-CgNote $cfg "BLOCKED"', "[void](Write-Output"),
+    ("crashguard: pending save not cleared", "$state.pending_save = @()\n", "\n"),
+]
+
+
 def run():
-    return (_mutate("playguard.ps1", PG_MUTANTS, playguard_suite) + _mutate("capture.ps1", MUTANTS, privacy) + _mutate("tidy.ps1", TIDY_MUTANTS, tidy_suite)
+    return (_mutate("crashguard.ps1", CG_MUTANTS, crashguard_suite) + _mutate("playguard.ps1", PG_MUTANTS, playguard_suite) + _mutate("capture.ps1", MUTANTS, privacy) + _mutate("tidy.ps1", TIDY_MUTANTS, tidy_suite)
             + _mutate("tidy-start.ps1", START_MUTANTS, start_suite))
 

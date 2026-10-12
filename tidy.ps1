@@ -5,6 +5,7 @@
 #   -Watch -IntervalSec 3      loop forever; single instance via <repo>\tidy.lock; one line per close in <repo>\tidy.log
 #   -Minimize                  minimize instead of WM_CLOSE
 #   -Watch also runs the play-guard (playguard.ps1 / playguard.json) every check_sec unless "enabled": false
+#   -Watch also runs the crash-guard (crashguard.ps1 / crashguard.json): restore autosaves, quiet CRC kill, hidden relaunch
 #   -DryRun -FakeWindows f.json  decide against a fixture (hwnd,title,process,owner); no Win32
 # Rules (all must hold to touch a window):
 #   1. it belongs to an UnrealEditor process
@@ -152,11 +153,22 @@ try {
         $pg = Read-PlayGuardConfig (Join-Path $PSScriptRoot "playguard.json")
         Add-Content -Path $LogFile -Value ("{0} playguard enabled={1} check={2}s max_play={3}m wait_max={4}m art={5}" -f (Get-Date).ToString("s"), $pg.enabled, $pg.check_sec, $pg.max_play_min, $pg.wait_max_min, $pg.art_dir)
     } catch { Add-Content -Path $LogFile -Value ("{0} playguard off: {1}" -f (Get-Date).ToString("s"), $_.Exception.Message) }
+    $cg = $null; $cgState = @{ crashes = @(); pending_save = @() }; $cgLast = [datetime]::MinValue
+    try {
+        . (Join-Path $PSScriptRoot "crashguard.ps1")
+        $cg = Read-CrashGuardConfig (Join-Path $PSScriptRoot "crashguard.json")
+        if ($cg.enabled -eq $true -and $cg.set_crash_privacy -eq $true -and (Set-CrashPrivacy $cg)) { Add-Content -Path $LogFile -Value ("{0} crashguard set bSendUnattendedBugReports=False in DefaultEditorSettings.ini" -f (Get-Date).ToString("s")) }
+        Add-Content -Path $LogFile -Value ("{0} crashguard enabled={1} check={2}s d3d11_after={3}" -f (Get-Date).ToString("s"), $cg.enabled, $cg.check_sec, $cg.d3d11_after_crashes)
+    } catch { Add-Content -Path $LogFile -Value ("{0} crashguard off: {1}" -f (Get-Date).ToString("s"), $_.Exception.Message) }
     try {
         while ($true) {
             if ($pg -and $pg.enabled -eq $true -and ((Get-Date) - $pgLast).TotalSeconds -ge [double]$pg.check_sec) {
                 $pgLast = Get-Date
                 try { [void](Invoke-PlayGuard $pg $pgState $LogFile) } catch { Add-Content -Path $LogFile -Value ("{0} playguard error {1}" -f (Get-Date).ToString("s"), $_.Exception.Message) }
+            }
+            if ($cg -and $cg.enabled -eq $true -and ((Get-Date) - $cgLast).TotalSeconds -ge [double]$cg.check_sec) {
+                $cgLast = Get-Date
+                try { [void](Invoke-CrashGuard $cg $cgState $LogFile "") } catch { Add-Content -Path $LogFile -Value ("{0} crashguard error {1}" -f (Get-Date).ToString("s"), $_.Exception.Message) }
             }
             try {
                 $r = Invoke-Tidy $list

@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "check_sec": 10,
+  "project_dir": "C:\\Unreal\\DaedalusRealm",
+  "project_file": "C:\\Unreal\\DaedalusRealm\\DaedalusRealm.uproject",
+  "editor_exe": "C:\\Program Files\\Epic Games\\UE_5.8\\Engine\\Binaries\\Win64\\UnrealEditor.exe",
+  "editor_log": "C:\\Unreal\\DaedalusRealm\\Saved\\Logs\\DaedalusRealm.log",
+  "backup_dir": "C:\\Users\\730ri\\projects\\bot-team\\backups",
+  "extra_args": "",
+  "d3d11_after_crashes": 2,
+  "crash_window_min": 60,
+  "set_crash_privacy": true,
+  "bridge_host": "127.0.0.1",
+  "bridge_port": 9877,
+  "teamlink_url": "http://127.0.0.1:9890/send",
+  "from": "2hot2trot"
+}

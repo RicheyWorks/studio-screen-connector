@@ -127,3 +127,13 @@ A read-only check that an editor turn ended clean, before the next team gets the
 A bridge that doesn't answer fails the first two checks, because a turn that can't be verified doesn't count as clean.
 The audit never stops Play, saves, or closes anything. Suite: `harness/audit_suite.py` (fake bridge + `tests/fixtures/audit_*.json`).
 
+
+## crash-guard (crashguard.ps1 / crashguard.json)
+
+Runs inside `tidy.ps1 -Watch` every `check_sec`. No popups for the user:
+
+- **Restore Packages dialog** (editor alive, window title `Restore Packages`): Slate exposes no controls and a hidden editor ignores posted input, so it kills the editor + crash reporter, restores, relaunches hidden.
+- **Crash** (no editor, `CrashReportClient(Editor)` alive, editor log tail shows `Critical error`/`Fatal error`/`DXGI_ERROR`): kills the crash reporter (nothing is sent), posts `BLOCKED` on the team link, restores, relaunches hidden via WMI `ShowWindow=0`. From the 2nd crash inside `crash_window_min` it adds `-d3d11`. Never relaunches while UnrealBuildTool/AutomationTool runs or while an editor is up.
+- **Restore** happens before launch: UE 5.8 has no auto-restore setting (`PackageAutoSaver.cpp` only has `-AutoDeclinePackageRecovery` and `-unattended`, and both discard the restore list). Every `PackageRestoreData.json` entry (UTF-16) is copied from `Saved/Autosaves` over `Content`, overwritten files are backed up under `backup_dir/crashguard-<stamp>`, the json is renamed, and package names go to `tidy.log`. When the bridge answers again, each restored package is loaded and saved through `execute_python`, and a note is posted.
+- `set_crash_privacy`: writes `[/Script/UnrealEd.CrashReportsPrivacySettings] bSendUnattendedBugReports=False` to the project's `Config/DefaultEditorSettings.ini`.
+- Manual: `.\crashguard.ps1 -RestoreOnly` (editor closed) restores autosaves without launching.
