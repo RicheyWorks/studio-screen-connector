@@ -1,5 +1,9 @@
 # studio-screen-connector
 
+**Let a remote agent see one allowlisted window on a Windows PC: one read-only PowerShell call, one PNG, nothing uploaded.**
+
+<p align="center"><img src="docs/images/capture-flow.svg" width="900" alt="Flow: the agent calls capture.ps1, the allowlist and denylist are checked, PrintWindow captures the window with no input sent, the PNG and a title-only log entry stay on the PC, and the agent copies the path."></p>
+
 Read-only, on-demand screenshots of allowlisted windows on a Windows PC (the Claude desktop app, Unreal Editor,
 Blender), so a remote agent can see what Claude is doing. One PowerShell call per capture: no server, no daemon,
 no input sent, nothing uploaded. The PNG stays on the PC until the agent copies it.
