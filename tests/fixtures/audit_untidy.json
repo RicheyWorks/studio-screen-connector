@@ -1,0 +1,6 @@
+[
+  {"hwnd": 1, "title": "MyLevel - Unreal Editor", "process": "UnrealEditor", "owner": 0},
+  {"hwnd": 2, "title": "Content Browser", "process": "UnrealEditor", "owner": 1},
+  {"hwnd": 3, "title": "Message Log", "process": "UnrealEditor", "owner": 1},
+  {"hwnd": 6, "title": "Save Content", "process": "UnrealEditor", "owner": 1}
+]

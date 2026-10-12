@@ -110,3 +110,20 @@ Ledgers follow the claude-unreal-connector pattern (`harness/ledger.py`): `ledge
 
 Any local server would bind to 127.0.0.1 and require a token read from a file in the user profile. Long jobs go
 through WMI `Win32_Process.Create` (see Daedalus2 `docs/AUTOMATION-LESSONS.md`).
+
+## Turn audit (audit.ps1)
+
+A read-only check that an editor turn ended clean, before the next team gets the slot:
+
+    .\audit.ps1        # one JSON line {"ok":..,"checks":[...]}; exit 0 clean, 1 not
+
+| check | how |
+|---|---|
+| play stopped | bridge 127.0.0.1:9877 `ping` answers and `result.playing` is false |
+| saved | no dirty map/content packages (read-only `execute_python` query; `-SkipSaved` skips it) |
+| no floating panels | no owned UnrealEditor top-level window (run `tidy.ps1 -Once` to fix) |
+| no open dialogs | no owned UnrealEditor window that looks like a dialog |
+
+A bridge that doesn't answer fails the first two checks, because a turn that can't be verified doesn't count as clean.
+The audit never stops Play, saves, or closes anything. Suite: `harness/audit_suite.py` (fake bridge + `tests/fixtures/audit_*.json`).
+

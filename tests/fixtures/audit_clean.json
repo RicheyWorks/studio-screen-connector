@@ -1,0 +1,4 @@
+[
+  {"hwnd": 1, "title": "MyLevel - Unreal Editor", "process": "UnrealEditor", "owner": 0},
+  {"hwnd": 10, "title": "Details", "process": "blender", "owner": 77}
+]
