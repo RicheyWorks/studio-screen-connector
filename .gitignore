@@ -3,3 +3,5 @@ screens/
 *.png
 *.local.ps1
 __pycache__/
+tidy.log
+tidy.lock
