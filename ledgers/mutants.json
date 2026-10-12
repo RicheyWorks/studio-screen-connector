@@ -1,13 +1,53 @@
 {
  "entries": {
   "privacy": {
-   "at": 1791837676,
+   "at": 1791839967,
    "equivalent": 0,
    "equivalents": [],
    "inconclusive": 0,
-   "killed": 11,
-   "mutants": 11,
+   "killed": 19,
+   "mutants": 19,
    "rows": [
+    {
+     "detail": "disabled: never pings or stops",
+     "name": "playguard: enabled check dropped in tick",
+     "verdict": "killed"
+    },
+    {
+     "detail": "PIE long, no READY rows (prose only): no stop, polls with READ ping, not stop",
+     "name": "playguard: READY condition dropped",
+     "verdict": "killed"
+    },
+    {
+     "detail": "PIE short + READY: no stop, first sighting starts the play timer, no stop",
+     "name": "playguard: play duration condition dropped",
+     "verdict": "killed"
+    },
+    {
+     "detail": "PIE long, no READY rows (prose only): no stop, polls with READ ping, not stop, PIE short + READY: no stop, first sightin",
+     "name": "playguard: wait duration condition dropped",
+     "verdict": "killed"
+    },
+    {
+     "detail": "PIE off: no stop, play timer cleared, PIE long + READY rows: stop, log, note, QUEUE.md READY rows count too, PIE long, n",
+     "name": "playguard: polls with stop",
+     "verdict": "killed"
+    },
+    {
+     "detail": "PIE long, no READY rows (prose only): no stop, polls with READ ping, not stop",
+     "name": "playguard: READY row anchor dropped",
+     "verdict": "killed"
+    },
+    {
+     "detail": "PIE long + READY rows: stop, log, note, waiting text > wait_max: stop",
+     "name": "playguard: no team-link note",
+     "verdict": "killed"
+    },
+    {
+     "detail": "PIE long + READY rows: stop, log, note",
+     "name": "playguard: no log line",
+     "verdict": "killed"
+    },
     {
      "detail": "deny title wins even on allowlisted process, list never shows denylisted windows",
      "name": "drop denylist in Find-Rule",
