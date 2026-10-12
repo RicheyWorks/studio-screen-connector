@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "check_sec": 15,
+  "max_play_min": 8,
+  "wait_max_min": 3,
+  "art_dir": "",
+  "bridge_host": "127.0.0.1",
+  "bridge_port": 9877,
+  "connect_timeout_ms": 1500,
+  "read_timeout_ms": 3000,
+  "stop_timeout_ms": 35000,
+  "teamlink_url": "http://127.0.0.1:9890/send",
+  "from": "2hot2trot"
+}
