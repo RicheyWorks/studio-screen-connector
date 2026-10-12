@@ -2,6 +2,7 @@ name: dry-run suites
 on:
   push:
   pull_request:
+  workflow_dispatch:
 jobs:
   dryrun:
     runs-on: ubuntu-latest
