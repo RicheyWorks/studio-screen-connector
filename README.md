@@ -45,13 +45,42 @@ Verify the machine matches GitHub:
 $d="$env:USERPROFILE\projects\studio-screen-connector"; git -C $d fetch -q; if((git -C $d rev-parse HEAD) -eq (git -C $d rev-parse origin/main) -and -not (git -C $d status --porcelain)){'MATCH'}else{'DIFFERS'}
 ```
 
+## Post-job hook: tidy floating Unreal tabs
+
+Floating editor tabs (Content Browser, Message Log, Output Log, ...) cover the viewport. `tidy.ps1` closes them
+with `WM_CLOSE` (or minimizes them with `-Minimize`).
+
+**Any harness calls this at the end of every job:**
+
+```powershell
+& "$env:USERPROFILE\projects\studio-screen-connector\tidy.ps1"     # prints {"ok":true,"closed":[...],"kept":[...]}
+```
+
+**While idle, run the hidden watcher** (it checks every 3 s, allows one instance via `tidy.lock`, and logs each close to `tidy.log`):
+
+```powershell
+& "$env:USERPROFILE\projects\studio-screen-connector\tidy-start.ps1"            # start (WMI, hidden, outlives the caller)
+& "$env:USERPROFILE\projects\studio-screen-connector\tidy-start.ps1" -Status
+& "$env:USERPROFILE\projects\studio-screen-connector\tidy-start.ps1" -Stop
+```
+
+A window is touched only if **all** of these are true:
+1. It belongs to an `UnrealEditor` process.
+2. It has an owner window (`GW_OWNER != 0`), so the main `X - Unreal Editor` window is never touched.
+3. Its title doesn't look like a dialog or prompt (Save, Delete, Import, Warning, Error, Confirm, Restore,
+   Package, or Message, though "Message Log" is fine). Dialogs are left to the dialog watcher.
+4. Its title is in `tidy.json` (committed default list; exact match, case-insensitive).
+
+`tidy.log` and `tidy.lock` are git-ignored. The `tidy` suite and its mutants (one per rule) run in CI.
+
 ## Tests
 
 `python -m harness.run_all` runs the dry-run suites (needs `pwsh`), and CI runs them on Linux:
 
 - `contract`: JSON shape and window selection against `tests/fixtures/*.json`
 - `privacy`: every deny path is refused
-- `mutants`: the privacy suite must kill each mutation of the guard (results in `ledgers/mutants.json`)
+- `tidy`: tidy.ps1 close/keep decisions against `tests/fixtures/tidy_*.json`
+- `mutants`: the privacy and tidy suites must kill each mutation of their rules (results in `ledgers/mutants.json`)
 - `capture_live`: BLACKBEARD only (phase 2)
 
 Ledgers follow the claude-unreal-connector pattern (`harness/ledger.py`): `ledgers/runs.json`, `privacy.json`,

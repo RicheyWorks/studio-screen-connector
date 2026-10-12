@@ -1,6 +1,7 @@
 {
   "contract": {"module": "harness.contract", "ci": true, "about": "JSON shape + target selection, dry-run"},
   "privacy":  {"module": "harness.privacy",  "ci": true, "about": "every deny path refused, dry-run"},
-  "mutants":  {"module": "harness.mutate",   "ci": true, "about": "privacy suite kills every guard mutant"},
+  "tidy":     {"module": "harness.tidy_suite", "ci": true, "about": "tidy.ps1 close/keep decisions, dry-run"},
+  "mutants":  {"module": "harness.mutate",   "ci": true, "about": "privacy + tidy suites kill every guard mutant"},
   "capture_live": {"ci": false, "about": "BLACKBEARD only: capture.ps1 -Target claude|unreal|blender, PNG non-blank (phase 2)"}
 }
