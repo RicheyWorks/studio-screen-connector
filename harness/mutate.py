@@ -4,7 +4,7 @@ import io
 import os
 import tempfile
 
-from . import privacy, tidy_suite
+from . import privacy, start_suite, tidy_suite
 from .ledger import ROOT
 
 MUTANTS = [
@@ -40,6 +40,12 @@ def _mutate(script, mutants, suite):
     return rows
 
 
+START_MUTANTS = [
+    ("tidy-start: log_tail string cast dropped", "Get-Content $log -Tail 5 | ForEach-Object { [string]$_ }", "Get-Content $log -Tail 5"),
+]
+
+
 def run():
-    return _mutate("capture.ps1", MUTANTS, privacy) + _mutate("tidy.ps1", TIDY_MUTANTS, tidy_suite)
+    return (_mutate("capture.ps1", MUTANTS, privacy) + _mutate("tidy.ps1", TIDY_MUTANTS, tidy_suite)
+            + _mutate("tidy-start.ps1", START_MUTANTS, start_suite))
 

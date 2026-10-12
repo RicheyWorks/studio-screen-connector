@@ -21,7 +21,8 @@ function Out-Json($o) { $o | ConvertTo-Json -Depth 4 -Compress }
 
 $w = Get-Watcher
 if ($Status) {
-    $tail = @(); if (Test-Path $log) { $tail = @(Get-Content $log -Tail 5) }
+    # Cast to plain strings: Get-Content lines carry PS metadata (PSPath, ReadCount, ...) that ConvertTo-Json would dump.
+    $tail = @(); if (Test-Path $log) { $tail = @(Get-Content $log -Tail 5 | ForEach-Object { [string]$_ }) }
     Out-Json @{ ok = $true; running = [bool]$w; pid = $(if ($w) { $w.Id } else { $null }); log_tail = $tail }; exit 0
 }
 if ($Stop) {
