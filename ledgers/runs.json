@@ -1,22 +1,28 @@
 {
  "entries": {
   "contract": {
-   "at": 1791822473,
+   "at": 1791837113,
    "commit": "uncommitted",
    "passed": 10,
    "total": 10
   },
   "mutants": {
-   "at": 1791822516,
+   "at": 1791837175,
    "commit": "uncommitted",
-   "passed": 5,
-   "total": 5
+   "passed": 10,
+   "total": 10
   },
   "privacy": {
-   "at": 1791822479,
+   "at": 1791837118,
    "commit": "uncommitted",
    "passed": 11,
    "total": 11
+  },
+  "tidy": {
+   "at": 1791837123,
+   "commit": "uncommitted",
+   "passed": 10,
+   "total": 10
   }
  }
 }

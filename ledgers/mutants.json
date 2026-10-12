@@ -1,12 +1,12 @@
 {
  "entries": {
   "privacy": {
-   "at": 1791822516,
+   "at": 1791837175,
    "equivalent": 0,
    "equivalents": [],
    "inconclusive": 0,
-   "killed": 5,
-   "mutants": 5,
+   "killed": 10,
+   "mutants": 10,
    "rows": [
     {
      "detail": "deny title wins even on allowlisted process, list never shows denylisted windows",
@@ -31,6 +31,31 @@
     {
      "detail": "screen refused while denylisted window visible",
      "name": "deny check before screen dropped",
+     "verdict": "killed"
+    },
+    {
+     "detail": "closes listed floating panels, keeps an unowned window even if its title is listed, 'Message Log' is not treated as a di",
+     "name": "tidy: process rule dropped",
+     "verdict": "killed"
+    },
+    {
+     "detail": "closes listed floating panels, keeps an unowned window even if its title is listed, dialog guard beats tidy.json, 'Messa",
+     "name": "tidy: owner rule dropped",
+     "verdict": "killed"
+    },
+    {
+     "detail": "closes listed floating panels, keeps an unowned window even if its title is listed, dialog guard beats tidy.json, 'Messa",
+     "name": "tidy: dialog rule dropped",
+     "verdict": "killed"
+    },
+    {
+     "detail": "closes listed floating panels, keeps an unowned window even if its title is listed, dialog guard beats tidy.json, 'Messa",
+     "name": "tidy: list rule dropped",
+     "verdict": "killed"
+    },
+    {
+     "detail": "closes listed floating panels, keeps an unowned window even if its title is listed, 'Message Log' is not treated as a di",
+     "name": "tidy: Message Log exception dropped",
      "verdict": "killed"
     }
    ],

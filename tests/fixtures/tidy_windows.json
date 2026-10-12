@@ -1,0 +1,14 @@
+[
+  {"hwnd": 1, "title": "MyLevel - Unreal Editor", "process": "UnrealEditor", "owner": 0},
+  {"hwnd": 2, "title": "Content Browser", "process": "UnrealEditor", "owner": 1},
+  {"hwnd": 3, "title": "Message Log", "process": "UnrealEditor", "owner": 1},
+  {"hwnd": 4, "title": "Content Browser 2", "process": "UnrealEditor", "owner": 1},
+  {"hwnd": 5, "title": "Output Log", "process": "UnrealEditor", "owner": 1},
+  {"hwnd": 6, "title": "Save Content", "process": "UnrealEditor", "owner": 1},
+  {"hwnd": 7, "title": "Message", "process": "UnrealEditor", "owner": 1},
+  {"hwnd": 8, "title": "Restore Packages", "process": "UnrealEditor", "owner": 1},
+  {"hwnd": 9, "title": "Plugins", "process": "UnrealEditor", "owner": 1},
+  {"hwnd": 10, "title": "Details", "process": "blender", "owner": 77},
+  {"hwnd": 11, "title": "Content Browser", "process": "UnrealEditor", "owner": 0},
+  {"hwnd": 12, "title": "Import Warning", "process": "UnrealEditor", "owner": 1}
+]
