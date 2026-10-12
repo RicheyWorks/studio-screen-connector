@@ -73,6 +73,24 @@ A window is touched only if **all** of these are true:
 
 `tidy.log` and `tidy.lock` are git-ignored. The `tidy` suite and its mutants (one per rule) run in CI.
 
+## Play-guard: Play-in-Editor never blocks imports
+
+The tidy watcher also runs `playguard.ps1` every `check_sec` (15 s). It asks the Unreal bridge
+(TCP 127.0.0.1:9877, newline-delimited JSON) whether Play is on, using the READ-risk `ping` command
+(`result.playing`). It only sends `stop` (MUTATE; ends PIE and waits up to 30 s) when the policy says so:
+
+- PIE has been on longer than `max_play_min` (8) **and** `bot-team\art\STATUS.md` or `QUEUE.md` has READY rows
+  (table rows or list items containing the word READY), or
+- `STATUS.md` has said `Waiting on: Unreal to leave Play mode` for longer than `wait_max_min` (3) while PIE is on.
+
+The durations count from when the guard first sees each state. Every stop is logged to `tidy.log` and posted to
+team-link (`POST http://127.0.0.1:9890/send`, from `2hot2trot` to `*`, type `note`) with the reason.
+Turn it off with `"enabled": false` in `playguard.json`, then restart the watcher. The art folder defaults to
+`%USERPROFILE%\projects\bot-team\art`; set `art_dir` to change it. Socket timeouts are short (connect 1.5 s,
+read 3 s, stop 35 s), and an unreachable bridge just skips that tick.
+
+To run one tick by hand: `& "$env:USERPROFILE\projects\studio-screen-connector\playguard.ps1"` prints one JSON line.
+
 ## Tests
 
 `python -m harness.run_all` runs the dry-run suites (needs `pwsh`), and CI runs them on Linux:
@@ -81,7 +99,8 @@ A window is touched only if **all** of these are true:
 - `privacy`: every deny path is refused
 - `tidy`: tidy.ps1 close/keep decisions against `tests/fixtures/tidy_*.json`
 - `start`: tidy-start.ps1 -Status returns small JSON with log_tail as plain strings
-- `mutants`: the privacy and tidy suites must kill each mutation of their rules (results in `ledgers/mutants.json`)
+- `playguard`: each policy branch against a fake bridge, a fake team-link and art fixtures
+- `mutants`: the privacy, tidy, start and playguard suites must kill each mutation of their rules (results in `ledgers/mutants.json`)
 - `capture_live`: BLACKBEARD only (phase 2)
 
 Ledgers follow the claude-unreal-connector pattern (`harness/ledger.py`): `ledgers/runs.json`, `privacy.json`,

@@ -4,7 +4,7 @@ import io
 import os
 import tempfile
 
-from . import privacy, start_suite, tidy_suite
+from . import playguard_suite, privacy, start_suite, tidy_suite
 from .ledger import ROOT
 
 MUTANTS = [
@@ -44,8 +44,19 @@ START_MUTANTS = [
     ("tidy-start: log_tail string cast dropped", "Get-Content $log -Tail 5 | ForEach-Object { [string]$_ }", "Get-Content $log -Tail 5"),
 ]
 
+PG_MUTANTS = [
+    ("playguard: enabled check dropped in tick", 'if ($cfg.enabled -ne $true) { return @{ action = "disabled" } }', ""),
+    ("playguard: READY condition dropped", "-gt [double]$cfg.max_play_min -and $ready -gt 0", "-gt [double]$cfg.max_play_min"),
+    ("playguard: play duration condition dropped", "$playMin -gt [double]$cfg.max_play_min -and", "$true -and"),
+    ("playguard: wait duration condition dropped", "if ($waitMin -gt [double]$cfg.wait_max_min)", "if ($waitMin -ge 0)"),
+    ("playguard: polls with stop", 'Send-BridgeCommand $cfg "ping"', 'Send-BridgeCommand $cfg "stop"'),
+    ("playguard: READY row anchor dropped", "$l -match '^\\s*(\\||[-*]\\s)' -and ", ""),
+    ("playguard: no team-link note", '$noted = Send-TeamNote $cfg', '$noted = $false #'),
+    ("playguard: no log line", "if ($logPath) { try { Add-Content", "if ($false) { try { Add-Content"),
+]
+
 
 def run():
-    return (_mutate("capture.ps1", MUTANTS, privacy) + _mutate("tidy.ps1", TIDY_MUTANTS, tidy_suite)
+    return (_mutate("playguard.ps1", PG_MUTANTS, playguard_suite) + _mutate("capture.ps1", MUTANTS, privacy) + _mutate("tidy.ps1", TIDY_MUTANTS, tidy_suite)
             + _mutate("tidy-start.ps1", START_MUTANTS, start_suite))
 
