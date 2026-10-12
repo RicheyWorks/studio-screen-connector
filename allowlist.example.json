@@ -1,0 +1,6 @@
+{
+  "claude":  { "process": "claude",       "title": "^Claude" },
+  "unreal":  { "process": "UnrealEditor", "title": "." },
+  "blender": { "process": "blender",      "title": "Blender" },
+  "screen":  { "enabled": false }
+}
