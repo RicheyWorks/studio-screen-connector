@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+﻿# SPDX-License-Identifier: MIT
 # studio-screen-connector / tidy.ps1  (Windows PowerShell 5.1+; -DryRun also runs under pwsh on Linux)
 # Closes floating Unreal Editor tool tabs (Content Browser, Message Log, ...) that cover the viewport.
 #   -Once (default)            close matching windows now; prints {"ok":true,"closed":[titles],"kept":[...]}
@@ -104,7 +104,19 @@ function Get-EditorWindows {
     return $out
 }
 
+function Test-EditorBusy {
+    # Crash fix (pythagoras, 2026-10-12): WM_CLOSE on a floating Content Browser while AssetTools.ImportAssetTasks
+    # is running made UE recreate a viewport swapchain on a dead HWND -> D3D12 DXGI_ERROR_INVALID_CALL. Both editor
+    # crashes (14:03:17, 14:37:40) followed a tidy close by <5 ms. Skip the cycle while the editor log shows import
+    # activity in the last 20 s; the window gets closed on a later, idle cycle.
+    $log = "C:\Unreal\DaedalusRealm\Saved\Logs\DaedalusRealm.log"
+    if (-not (Test-Path $log)) { return $false }
+    if (((Get-Date) - (Get-Item $log).LastWriteTime).TotalSeconds -gt 20) { return $false }
+    $tail = Get-Content $log -Tail 60 -ErrorAction SilentlyContinue
+    return [bool]($tail | Select-String -Pattern "AssetCheck|LogContentValidation|ImportAssetTasks|LogFbx|LogInterchange|LogStaticMesh: Building|AssetImport" -Quiet)
+}
 function Invoke-Tidy($list) {
+    if (Test-EditorBusy) { return }
     $s = Split-Windows @(Get-EditorWindows) $list
     $done = @()
     foreach ($w in $s.act) {
@@ -161,3 +173,4 @@ try {
     Out-Json @{ ok = $false; message = $_.Exception.Message }
     exit 1
 }
+
