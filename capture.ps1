@@ -4,7 +4,7 @@
 # Based on RicheyWorks/claude-unreal-connector extension/server/win.ps1 (MIT): same EnumWindows + PrintWindow
 # (PW_RENDERFULLCONTENT) approach; its fixed UnrealEditor process filter is generalized into allowlist.json + -Process.
 #   -Op list                      allowlisted visible windows (no pixels) as JSON
-#   -Op capture -Target claude    capture the largest window matching allowlist entry "claude" to PNG
+#   -Op capture -Target claude    capture the largest window matching allowlist entry "claude" to <repo>\screens\*.png
 #   -Op capture -Target screen    full primary screen (only if allowlist "screen".enabled = true)
 #   -Op capture -Hwnd N           capture a specific window, which must still match the allowlist
 #   -Op shot                      alias of capture (win.ps1 naming)
@@ -16,7 +16,7 @@ param(
     [string[]]$Process = @(),
     [string]$Target = "",
     [long]$Hwnd = 0,
-    [string]$OutDir = "C:\RicheyWorks\screens",
+    [string]$OutDir = "",
     [string]$Allowlist = "",
     [int]$MaxEdge = 1600,
     [int]$RetainHours = 24,
@@ -26,6 +26,7 @@ param(
 )
 $ErrorActionPreference = "Stop"
 if ($Op -eq "shot") { $Op = "capture" }
+if (-not $OutDir) { $OutDir = Join-Path $PSScriptRoot "screens" }   # inside the user profile, so CopyToBox can read it
 if (-not $Allowlist) { $Allowlist = Join-Path $PSScriptRoot "allowlist.json" }
 
 $DenyTitle = '(?i)password|1password|bitwarden|keepass|lastpass|bank|coinbase|gmail|outlook|signal|whatsapp|authenticator'

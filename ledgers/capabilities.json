@@ -1,8 +1,28 @@
 {
  "entries": {
-  "claude":  {"live": "untested", "note": "fill from capture_live on BLACKBEARD"},
-  "unreal":  {"live": "untested"},
-  "blender": {"live": "untested"},
-  "screen":  {"live": "disabled by default"}
+  "blender": {
+   "commit": "525b347",
+   "live": "listed",
+   "machine": "BLACKBEARD",
+   "note": "found by -Op list (blender: 2 windows); capture not yet run"
+  },
+  "claude": {
+   "commit": "525b347",
+   "date": "2026-10-12",
+   "live": "pass",
+   "machine": "BLACKBEARD",
+   "method": "printwindow",
+   "ms": 282,
+   "note": "first live run; old default C:\\RicheyWorks\\screens was unreadable by CopyToBox -> default moved to <repo>\\screens"
+  },
+  "screen": {
+   "live": "disabled by default"
+  },
+  "unreal": {
+   "commit": "525b347",
+   "live": "listed",
+   "machine": "BLACKBEARD",
+   "note": "found by -Op list (blender: 2 windows); capture not yet run"
+  }
  }
 }
