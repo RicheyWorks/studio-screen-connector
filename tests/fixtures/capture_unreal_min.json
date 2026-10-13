@@ -1,0 +1,4 @@
+[
+  {"hwnd": 301, "title": "DaedalusRealm - Unreal Editor", "process": "UnrealEditor", "class": "UnrealWindow", "x": -32000, "y": -32000, "width": 160, "height": 28, "minimized": true},
+  {"hwnd": 302, "title": "Claude", "process": "claude", "class": "Chrome_WidgetWin_1", "x": 0, "y": 0, "width": 1200, "height": 900, "minimized": false}
+]

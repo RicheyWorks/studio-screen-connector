@@ -10,6 +10,12 @@
 #   -Op shot                      alias of capture (win.ps1 naming)
 #   -Process claude,blender       optional extra filter: only these allowlisted processes are eligible
 #   -DryRun -FakeWindows f.json   run the selection + privacy guard against a fixture; no Win32, no pixels
+#   -Method auto|window|bridge    unreal only. auto (default): PrintWindow, but if the editor window is minimized,
+#                                 hidden or renders blank, fall back to the Unreal bridge. bridge: always use it.
+#   Bridge fallback: execute_python on -BridgeHost:-BridgePort (127.0.0.1:9877) spawns a TRANSIENT SceneCapture2D at
+#   the level-viewport camera, renders one frame into a transient RGBA8 render target, export_render_target -> PNG,
+#   destroys the actor, and the script polls for the file. Never shows/restores a window, never launches an editor,
+#   never saves; reports any package the capture newly dirtied (expected: none).
 # Output: one JSON object on stdout. Never sends input; never uploads.
 param(
     [ValidateSet("list", "capture", "shot")][string]$Op = "capture",
@@ -22,7 +28,11 @@ param(
     [int]$RetainHours = 24,
     [switch]$AllowFront,
     [switch]$DryRun,
-    [string]$FakeWindows = ""
+    [string]$FakeWindows = "",
+    [ValidateSet("auto", "window", "bridge")][string]$Method = "auto",
+    [string]$BridgeHost = "127.0.0.1",
+    [int]$BridgePort = 9877,
+    [int]$BridgeTimeoutMs = 30000
 )
 $ErrorActionPreference = "Stop"
 if ($Op -eq "shot") { $Op = "capture" }
@@ -32,6 +42,95 @@ if (-not $Allowlist) { $Allowlist = Join-Path $PSScriptRoot "allowlist.json" }
 $DenyTitle = '(?i)password|1password|bitwarden|keepass|lastpass|bank|coinbase|gmail|outlook|signal|whatsapp|authenticator'
 
 function Out-Json($o) { $o | ConvertTo-Json -Depth 5 -Compress }
+
+
+# ---- Unreal bridge capture: works while the editor is minimized/hidden; no window is touched ----
+function Get-BridgeShotPy([string]$dir, [string]$stem, [int]$w, [int]$h) {
+    return @"
+import unreal, json
+# studio-screen-connector capture
+OUT_DIR = r"$dir"; STEM = "$stem"; W = $w; H = $h
+ues = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem)
+world = ues.get_editor_world()
+loc, rot = ues.get_level_viewport_camera_info()
+before = set(p.get_name() for p in unreal.EditorLoadingAndSavingUtils.get_dirty_map_packages())
+rt = unreal.RenderingLibrary.create_render_target2d(world, W, H, unreal.TextureRenderTargetFormat.RTF_RGBA8_SRGB)
+actor = unreal.EditorLevelLibrary.spawn_actor_from_class(unreal.SceneCapture2D, loc, rot, transient=True)
+err = None
+try:
+    comp = actor.capture_component2d
+    comp.set_editor_property("texture_target", rt)
+    comp.set_editor_property("capture_source", unreal.SceneCaptureSource.SCS_FINAL_COLOR_LDR)
+    comp.set_editor_property("capture_every_frame", False)
+    comp.set_editor_property("capture_on_movement", False)
+    comp.capture_scene()
+    unreal.RenderingLibrary.export_render_target(world, rt, OUT_DIR, STEM)
+except Exception as e:
+    err = str(e)
+finally:
+    actor.destroy_actor()
+after = set(p.get_name() for p in unreal.EditorLoadingAndSavingUtils.get_dirty_map_packages())
+print(json.dumps({"cam": [loc.x, loc.y, loc.z], "error": err, "newly_dirty": sorted(after - before)}))
+"@
+}
+
+function Send-ShotBridge([string]$type, $params, [int]$readMs) {
+    $client = New-Object System.Net.Sockets.TcpClient
+    try {
+        $task = $client.ConnectAsync($BridgeHost, $BridgePort)
+        if (-not $task.Wait(2000) -or -not $client.Connected) { return $null }
+        $client.ReceiveTimeout = $readMs; $client.SendTimeout = 2000
+        $stream = $client.GetStream()
+        $req = (@{ id = "capture-" + [guid]::NewGuid().ToString("N").Substring(0, 8); type = $type; params = $params } | ConvertTo-Json -Compress -Depth 4) + "`n"
+        $bytes = [Text.Encoding]::UTF8.GetBytes($req); $stream.Write($bytes, 0, $bytes.Length)
+        $buf = New-Object byte[] 65536; $sb = New-Object System.Text.StringBuilder
+        while ($true) {
+            $n = $stream.Read($buf, 0, $buf.Length); if ($n -le 0) { break }
+            [void]$sb.Append([Text.Encoding]::UTF8.GetString($buf, 0, $n)); if ($sb.ToString().Contains("`n")) { break }
+        }
+        $line = $sb.ToString().Split("`n")[0]; if (-not $line) { return $null }
+        return ($line | ConvertFrom-Json)
+    } catch { return $null } finally { $client.Close() }
+}
+
+# Returns path/width/height or throws. Polls for the file: the export can land after the bridge replies.
+function Invoke-BridgeCapture([string]$key, [string]$why) {
+    if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }
+    $w = [Math]::Max(64, [Math]::Min($MaxEdge, 3840)); $h = [int][Math]::Round($w * 9 / 16)
+    $stem = "{0}-bridge-{1}" -f ($key -replace '[^A-Za-z0-9_-]', '_'), (Get-Date).ToString("yyyyMMdd-HHmmss")
+    $dir = (Resolve-Path $OutDir).Path
+    $r = Send-ShotBridge "execute_python" @{ code = (Get-BridgeShotPy $dir $stem $w $h) } $BridgeTimeoutMs
+    if ($null -eq $r) { throw ("Unreal bridge {0}:{1} did not answer ({2}); nothing captured, no window touched" -f $BridgeHost, $BridgePort, $why) }
+    if ($r.status -ne "ok") { throw ("Unreal bridge refused the capture: " + [string]$r.message) }
+    $info = $null
+    try { $info = ([string]$r.result.stdout -split "`n" | Where-Object { $_.Trim().StartsWith("{") } | Select-Object -Last 1) | ConvertFrom-Json } catch { }
+    if ($info -and $info.error) { throw ("bridge capture failed in the editor: " + $info.error) }
+    $final = Join-Path $dir ($stem + ".png"); $found = $null
+    $deadline = (Get-Date).AddMilliseconds($BridgeTimeoutMs)
+    while (-not $found -and (Get-Date) -lt $deadline) {
+        foreach ($c in @((Join-Path $dir $stem), $final)) { if ((Test-Path -LiteralPath $c) -and (Get-Item -LiteralPath $c).Length -gt 8) { $found = $c; break } }
+        if (-not $found) { Start-Sleep -Milliseconds 250 }
+    }
+    if (-not $found) { throw ("bridge capture wrote no file for '{0}' within {1} ms" -f $stem, $BridgeTimeoutMs) }
+    Start-Sleep -Milliseconds 200   # let the editor close the file
+    $sig = [IO.File]::ReadAllBytes($found)
+    if ($sig.Length -lt 8 -or $sig[0] -ne 0x89 -or $sig[1] -ne 0x50 -or $sig[2] -ne 0x4E -or $sig[3] -ne 0x47) {
+        Remove-Item -LiteralPath $found -Force -ErrorAction SilentlyContinue
+        throw "bridge capture file is not a PNG ($stem)"
+    }
+    if ($found -ne $final) { Move-Item -LiteralPath $found -Destination $final -Force }
+    $o = @{ path = $final; width = $w; height = $h; reason = $why; camera = $null; newly_dirty = @() }
+    if ($info) { $o.camera = $info.cam; $o.newly_dirty = @($info.newly_dirty) }
+    return $o
+}
+
+function Out-BridgeShot($key, $b, [bool]$dry) {
+    $o = @{ ok = $true; target = $key; method = "bridge"; reason = $b.reason; path = $b.path; width = $b.width; height = $b.height;
+            camera = $b.camera; newly_dirty = $b.newly_dirty }
+    if ($dry) { $o.dry_run = $true } else { $o.ms = $sw.ElapsedMilliseconds }
+    Write-Audit @{ target = $key; ok = $true; method = "bridge"; reason = $b.reason; path = $b.path }
+    Out-Json $o
+}
 
 function Write-Audit($entry) {
     if ($DryRun) { return }
@@ -92,8 +191,13 @@ function Resolve-Request($wins, $allow) {
         $key = $Target
         $win = $wins | Where-Object { $_.title -notmatch $DenyTitle -and (Test-Proc $_) -and (Test-Match $_ $allow[$Target]) } |
             Sort-Object { [long]$_.width * [long]$_.height } -Descending | Select-Object -First 1
-        if (-not $win) { return @{ error = "no open window matches '$Target'" } }
+        if (-not $win) {
+            if ($key -eq "unreal" -and $Method -ne "window" -and (Test-Proc ([pscustomobject]@{ process = "UnrealEditor" }))) { return @{ key = $key; win = $null; bridge = "no visible editor window" } }
+            return @{ error = "no open window matches '$Target'" }
+        }
     }
+    if ($key -eq "unreal" -and $Method -eq "bridge") { return @{ key = $key; win = $win; bridge = "requested" } }
+    if ($win.minimized -and $key -eq "unreal" -and $Method -ne "window") { return @{ key = $key; win = $win; bridge = "window minimized" } }
     if ($win.minimized) { return @{ error = "window '$($win.title)' is minimized; PrintWindow returns nothing for minimized windows" } }
     return @{ key = $key; win = $win }
 }
@@ -112,11 +216,15 @@ if ($DryRun) {
     try {
         $allow = Get-Allow
         $wins = @()
-        if ($FakeWindows) { $wins = @(Get-Content -Path $FakeWindows -Raw -Encoding UTF8 | ConvertFrom-Json) }
+        if ($FakeWindows) { $wins = @(Get-Content -Path $FakeWindows -Raw -Encoding UTF8 | ConvertFrom-Json | ForEach-Object { $_ }) }   # unwrap: PS 5.1 emits the array as one object
         if ($Op -eq "list") { Out-Json @{ ok = $true; dry_run = $true; windows = (Get-Listed $wins $allow) }; exit 0 }
         $res = Resolve-Request $wins $allow
         if ($res.refused) { Out-Json @{ ok = $false; dry_run = $true; refused = $true; message = "refused: " + $res.refused }; exit 1 }
         if ($res.error) { Out-Json @{ ok = $false; dry_run = $true; refused = $false; message = $res.error }; exit 1 }
+        if ($res.bridge) {   # dry run only talks to a bridge given explicitly (-BridgePort), never the live editor by default
+            if (-not $PSBoundParameters.ContainsKey("BridgePort")) { Out-Json @{ ok = $true; dry_run = $true; target = $res.key; method = "bridge"; reason = $res.bridge }; exit 0 }
+            Out-BridgeShot $res.key (Invoke-BridgeCapture $res.key $res.bridge) $true; exit 0
+        }
         $o = @{ ok = $true; dry_run = $true; target = $res.key }
         if ($res.win) { $o.hwnd = [long]$res.win.hwnd; $o.title = $res.win.title }
         Out-Json $o; exit 0
@@ -250,7 +358,12 @@ try {
         exit 0
     }
     $win = $res.win
+    if ($res.bridge) { Out-BridgeShot $res.key (Invoke-BridgeCapture $res.key $res.bridge) $false; exit 0 }
     $cap = Capture-Window $win
+    if ($cap.blank -and $res.key -eq "unreal" -and $Method -eq "auto") {
+        $cap.bmp.Dispose()
+        Out-BridgeShot $res.key (Invoke-BridgeCapture $res.key "window rendered blank") $false; exit 0
+    }
     $png = Save-Png $cap.bmp $res.key
     Write-Audit @{ target = $res.key; hwnd = $win.hwnd; title = $win.title; ok = $true; method = $cap.method; path = $png.path }
     Out-Json @{ ok = $true; target = $res.key; hwnd = $win.hwnd; title = $win.title; process = $win.process;

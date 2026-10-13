@@ -6,6 +6,7 @@
   "playguard": {"module": "harness.playguard_suite", "ci": true, "about": "play-guard policy vs fake bridge + team-link"},
   "audit":    {"module": "harness.audit_suite", "ci": true, "about": "audit.ps1 turn audit vs fake bridge + fixture windows"},
   "crashguard": {"module": "harness.crashguard_suite", "ci": true, "about": "crash recovery: restore autosaves, quiet CRC kill, hidden relaunch, -d3d11, fake procs/bridge/team-link"},
+  "capture_bridge": {"module": "harness.capture_bridge_suite", "ci": true, "about": "capture.ps1 -Target unreal bridge fallback (minimized/hidden editor) vs fake bridge"},
   "mutants":  {"module": "harness.mutate",   "ci": true, "about": "privacy, tidy, playguard, crashguard suites kill every guard mutant"},
   "capture_live": {"ci": false, "about": "BLACKBEARD only: capture.ps1 -Target claude|unreal|blender, PNG non-blank (phase 2)"}
 }
