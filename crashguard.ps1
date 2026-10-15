@@ -289,11 +289,15 @@ function Invoke-CrashGuard($cfg, $state, [string]$logPath, [string]$fakeProcs, [
                       "saved=unreal.EditorLoadingAndSavingUtils.save_dirty_packages(True,True)`nprint('CRASHGUARD_SAVED',len(ok),len(paths),saved)"
                 $r = Send-CgBridge $cfg "execute_python" @{ code = $py } 60000
                 $txt = [string]$(if ($r) { $r.result.stdout } else { "" })
-                if ($txt -match 'CRASHGUARD_SAVED (\d+) (\d+) True') {
+                $proofs = @([regex]::Matches($txt, '(?m)^CRASHGUARD_SAVED ([0-9]+) ([0-9]+) (True|False)[\t ]*\r?$'))
+                $loaded = 0; $requested = 0
+                if ($r -and $r.status -eq "ok" -and $proofs.Count -eq 1 -and $proofs[0].Groups[3].Value -eq "True" -and
+                    [int]::TryParse($proofs[0].Groups[1].Value, [ref]$loaded) -and [int]::TryParse($proofs[0].Groups[2].Value, [ref]$requested) -and
+                    $loaded -eq $pending.Count -and $requested -eq $pending.Count) {
                     $state.pending_save = @()
-                    $out.action = "saved"; $out.saved = [int]$Matches[1]
-                    if ($logPath) { try { Add-Content -Path $logPath -Value ("{0} crashguard saved {1}/{2} restored package(s)" -f (Get-Date).ToString("s"), $Matches[1], $Matches[2]) } catch { } }
-                    [void](Send-CgNote $cfg "note" ("crash-recovery: editor back up, bridge ok; restored + saved {0}/{1} autosaved package(s)." -f $Matches[1], $Matches[2]))
+                    $out.action = "saved"; $out.saved = $loaded
+                    if ($logPath) { try { Add-Content -Path $logPath -Value ("{0} crashguard saved {1}/{2} restored package(s)" -f (Get-Date).ToString("s"), $loaded, $requested) } catch { } }
+                    [void](Send-CgNote $cfg "note" ("crash-recovery: editor back up, bridge ok; restored + saved {0}/{1} autosaved package(s)." -f $loaded, $requested))
                 } else { $out.action = "save_failed" }
             }
         }

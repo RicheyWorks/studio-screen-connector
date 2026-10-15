@@ -87,6 +87,115 @@ ConvertTo-Json -InputObject @($rows) -Depth 24 -Compress
 '''
 
 
+CLOSURE_DRIVER = r'''
+param([string]$TidySource, [string]$GuardSource)
+$ErrorActionPreference = 'Stop'
+foreach ($item in @(@{ path=$TidySource; name='Invoke-WatcherTick' }, @{ path=$GuardSource; name='Invoke-CrashGuard' })) {
+    $tokens=$null; $errors=$null
+    $ast=[Management.Automation.Language.Parser]::ParseFile($item.path,[ref]$tokens,[ref]$errors)
+    if ($errors.Count) { throw 'source parse error' }
+    $fn=@($ast.EndBlock.Statements | Where-Object { $_ -is [Management.Automation.Language.FunctionDefinitionAst] -and $_.Name -eq $item.name })
+    if ($fn.Count -ne 1) { throw ('missing isolated helper: '+$item.name) }
+    Invoke-Expression $fn[0].Extent.Text
+    if ($item.name -eq 'Invoke-WatcherTick') {
+        $loops=@($ast.FindAll({param($node) $node -is [Management.Automation.Language.WhileStatementAst] -and
+            $node.Condition.Extent.Text -eq '$true'},$true))
+        if ($loops.Count -ne 1 -or $loops[0].Body.Extent.Text -notmatch 'Invoke-WatcherTick' -or
+            $loops[0].Body.Extent.Text -match 'Invoke-(CrashGuard|PlayGuard|Tidy)\b') { throw 'watcher loop bypasses isolated tick' }
+    }
+}
+$guardBody=(Get-Command Invoke-CrashGuard).ScriptBlock
+$script:traps=New-Object Collections.ArrayList
+foreach ($name in @('Get-Process','Stop-Process','Start-Process','Invoke-CimMethod','New-CimInstance','Get-CimInstance',
+    'Get-WmiObject','Invoke-WmiMethod','Invoke-RestMethod','Invoke-WebRequest','Start-Sleep','Add-Type',
+    'Stop-Ids','Start-EditorHidden','Invoke-PreLaunchRestore','Set-CrashPrivacy')) {
+    Set-Item ('Function:'+$name) ([scriptblock]::Create("[void]`$script:traps.Add('$name'); throw 'forbidden fixture action'"))
+}
+function Add-Content { }
+function Invoke-PlayGuard { [void]$script:calls.Add('playguard') }
+function Invoke-Tidy { [void]$script:calls.Add('tidy'); return @{closed=@();kept=@()} }
+function Invoke-CrashGuard($cfg,$state) {
+    [void]$script:calls.Add('crashguard')
+    if ($script:mode -eq 'throw') { throw 'fixture observation failed' }
+    $state.gpu_hold=if ($script:mode -eq 'hold') { @{session_key='fixture'} } else { $null }
+}
+$LogFile='forbidden-fixture-log'; $Minimize=$false
+$at=[datetime]'2026-10-14T15:43:00Z'
+$rows=New-Object Collections.ArrayList
+foreach ($case in @(
+    @{name='fatal observation precedes playguard and tidy';held=$false;mode='hold';sec=0;cg_due=$true;pg_due=$true;want='crashguard';end_hold=$true},
+    @{name='latched hold blocks intervening watcher ticks';held=$true;mode='clear';sec=3;cg_due=$false;pg_due=$true;want='';end_hold=$true},
+    @{name='failed observation preserves the existing hold';held=$true;mode='throw';sec=12;cg_due=$true;pg_due=$true;want='crashguard';end_hold=$true},
+    @{name='verified session release permits scheduled actions';held=$true;mode='clear';sec=12;cg_due=$true;pg_due=$true;want='crashguard,playguard,tidy';end_hold=$false},
+    @{name='healthy watcher retains guard order';held=$false;mode='clear';sec=0;cg_due=$true;pg_due=$true;want='crashguard,playguard,tidy';end_hold=$false},
+    @{name='hold release retains playguard cadence';held=$true;mode='clear';sec=12;cg_due=$true;pg_due=$false;want='crashguard,tidy';end_hold=$false}
+)) {
+    $script:calls=New-Object Collections.ArrayList; $script:mode=$case.mode
+    $state=@{gpu_hold=$(if ($case.held) {@{session_key='fixture'}} else {$null})}
+    $schedule=@{crashguard_last=$(if ($case.cg_due) {[datetime]::MinValue} else {$at});
+                playguard_last=$(if ($case.pg_due) {[datetime]::MinValue} else {$at})}
+    Invoke-WatcherTick @{enabled=$true;check_sec=10} $state @{enabled=$true;check_sec=15} @{} $schedule @() $at.AddSeconds($case.sec)
+    [void]$rows.Add(@{name=$case.name;pass=(($script:calls -join ',') -eq $case.want -and [bool]$state.gpu_hold -eq $case.end_hold);
+                     detail=($script:calls -join ',')})
+}
+# Exercise the original production guard body with all external effects mocked.
+function Get-Procs { return @() }
+function Get-GpuCrashEvidence { return @{fatal=$false} }
+function Test-LogCrashed { return $false }
+function Get-CrashAction { return 'none' }
+function Send-CgBridge($cfg,$kind,$parameters,$timeout) {
+    [void]$script:calls.Add($kind)
+    if ($kind -eq 'ping') { return @{status='ok'} }
+    return $script:receipt
+}
+function Send-CgNote { [void]$script:calls.Add('note'); return $true }
+foreach ($case in @(
+    @{name='all requested packages saved';status='ok';text="CRASHGUARD_SAVED 3 3 True`r`n";ok=$true},
+    @{name='no loaded packages cannot clear pending';status='ok';text='CRASHGUARD_SAVED 0 3 True';ok=$false},
+    @{name='partial load cannot clear pending';status='ok';text='CRASHGUARD_SAVED 2 3 True';ok=$false},
+    @{name='different requested count cannot clear pending';status='ok';text='CRASHGUARD_SAVED 2 2 True';ok=$false},
+    @{name='failed save cannot clear pending';status='ok';text='CRASHGUARD_SAVED 3 3 False';ok=$false},
+    @{name='error response cannot clear pending';status='error';text='CRASHGUARD_SAVED 3 3 True';ok=$false},
+    @{name='ambiguous repeated proof cannot clear pending';status='ok';text="CRASHGUARD_SAVED 3 3 True`nCRASHGUARD_SAVED 3 3 True";ok=$false},
+    @{name='oversized counts cannot clear pending';status='ok';text='CRASHGUARD_SAVED 99999999999999999 3 True';ok=$false},
+    @{name='embedded marker cannot clear pending';status='ok';text='unrelated CRASHGUARD_SAVED 3 3 True';ok=$false},
+    @{name='missing proof cannot clear pending';status='ok';text='';ok=$false}
+)) {
+    $script:calls=New-Object Collections.ArrayList
+    $script:receipt=@{status=$case.status;result=@{stdout=$case.text}}
+    $pending=@('/Game/Fixture/A','/Game/Fixture/B','/Game/Fixture/C')
+    $state=@{crashes=@();pending_save=$pending}
+    try {
+        $out=& $guardBody @{enabled=$true} $state '' 'fixture-only' $at
+        $ok=if ($case.ok) {$out.action -eq 'saved' -and $out.saved -eq 3 -and @($state.pending_save).Count -eq 0 -and ($script:calls -join ',') -eq 'ping,execute_python,note'}
+            else {$out.action -eq 'save_failed' -and ($state.pending_save -join ',') -eq ($pending -join ',') -and ($script:calls -join ',') -eq 'ping,execute_python'}
+    } catch { $ok=$false; $out=@{action=('error: '+$_.Exception.Message)} }
+    [void]$rows.Add(@{name=$case.name;pass=[bool]$ok;detail=$out.action})
+}
+if ($script:traps.Count) { throw ('forbidden actions: '+($script:traps -join ',')) }
+ConvertTo-Json -InputObject @($rows) -Depth 6 -Compress
+'''
+
+
+def closure_checks(tidy_script=None, guard_script=None, shell=None):
+    """Focused mocked watcher/save checks; never execute production entrypoints."""
+    with tempfile.TemporaryDirectory(prefix="gpu-watch-closure-") as directory:
+        driver = Path(directory) / "driver.ps1"
+        driver.write_text(CLOSURE_DRIVER, encoding="utf-8")
+        proc = subprocess.run([shell or ps.shell(), "-NoProfile", "-NonInteractive", "-File", str(driver),
+                               "-TidySource", str(tidy_script or Path(ROOT) / "tidy.ps1"),
+                               "-GuardSource", str(guard_script or Path(ROOT) / "crashguard.ps1")],
+                              capture_output=True, text=True, timeout=30)
+        try:
+            rows = json.loads(proc.stdout.strip().splitlines()[-1])
+            if proc.returncode or not isinstance(rows, list) or len(rows) != 16:
+                raise ValueError("focused fixture response mismatch")
+            return rows
+        except (ValueError, IndexError) as error:
+            return [{"name": "isolated watcher/save driver", "pass": False,
+                     "detail": (str(error) + ": " + proc.stdout + proc.stderr)[-1600:]}]
+
+
 def marker(event=EVENT, severity="Error", category="LogD3D12RHI", text="GPU crash detected:"):
     when = dt.datetime.fromisoformat(event.replace("Z", "+00:00"))
     stamp = when.strftime("%Y.%m.%d-%H.%M.%S") + ":%03d" % (when.microsecond // 1000)
@@ -236,7 +345,7 @@ def run(script=None, shell=None):
             except (KeyError, TypeError, ValueError, AttributeError) as exc:
                 ok, detail = False, repr(exc) + ": " + json.dumps(actual)[:1000]
             rows.append({"name": name, "pass": ok, "detail": detail})
-        return rows
+        return rows + closure_checks(guard_script=script, shell=shell)
 
 
 if __name__ == "__main__":

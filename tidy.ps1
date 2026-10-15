@@ -137,6 +137,26 @@ function Test-LockHeld {
     return $false
 }
 
+# One watcher iteration. Keep the fatal latch between the guards' different
+# polling intervals; only crashguard's verified new editor session clears it.
+function Invoke-WatcherTick($cg, $cgState, $pg, $pgState, $schedule, $list, [datetime]$Now = (Get-Date)) {
+    if ($cg -and $cg.enabled -eq $true -and ($Now - $schedule.crashguard_last).TotalSeconds -ge [double]$cg.check_sec) {
+        $schedule.crashguard_last = $Now
+        try { [void](Invoke-CrashGuard $cg $cgState $LogFile "") } catch { Add-Content -Path $LogFile -Value ("{0} crashguard error {1}" -f $Now.ToString("s"), $_.Exception.Message) }
+    }
+    if ($cgState.gpu_hold) { return }
+    if ($pg -and $pg.enabled -eq $true -and ($Now - $schedule.playguard_last).TotalSeconds -ge [double]$pg.check_sec) {
+        $schedule.playguard_last = $Now
+        try { [void](Invoke-PlayGuard $pg $pgState $LogFile) } catch { Add-Content -Path $LogFile -Value ("{0} playguard error {1}" -f $Now.ToString("s"), $_.Exception.Message) }
+    }
+    try {
+        $r = Invoke-Tidy $list
+        foreach ($t in $r.closed) {
+            Add-Content -Path $LogFile -Value ("{0} {1} '{2}'" -f $Now.ToString("s"), $(if ($Minimize) { "minimized" } else { "closed" }), $t)
+        }
+    } catch { Add-Content -Path $LogFile -Value ("{0} error {1}" -f $Now.ToString("s"), $_.Exception.Message) }
+}
+
 try {
     $list = Get-CloseList
     if (-not $Watch) {
@@ -147,13 +167,14 @@ try {
     if (Test-LockHeld) { Out-Json @{ ok = $false; message = "watcher already running (pid $(Get-Content $LockFile))" }; exit 1 }
     Set-Content -Path $LockFile -Value $PID -Encoding ASCII
     Add-Content -Path $LogFile -Value ("{0} start pid={1} interval={2}s" -f (Get-Date).ToString("s"), $PID, $IntervalSec)
-    $pg = $null; $pgState = @{ play_since = $null; wait_since = $null }; $pgLast = [datetime]::MinValue
+    $pg = $null; $pgState = @{ play_since = $null; wait_since = $null }
+    $schedule = @{ playguard_last = [datetime]::MinValue; crashguard_last = [datetime]::MinValue }
     try {
         . (Join-Path $PSScriptRoot "playguard.ps1")
         $pg = Read-PlayGuardConfig (Join-Path $PSScriptRoot "playguard.json")
         Add-Content -Path $LogFile -Value ("{0} playguard enabled={1} check={2}s max_play={3}m wait_max={4}m art={5}" -f (Get-Date).ToString("s"), $pg.enabled, $pg.check_sec, $pg.max_play_min, $pg.wait_max_min, $pg.art_dir)
     } catch { Add-Content -Path $LogFile -Value ("{0} playguard off: {1}" -f (Get-Date).ToString("s"), $_.Exception.Message) }
-    $cg = $null; $cgState = @{ crashes = @(); pending_save = @() }; $cgLast = [datetime]::MinValue
+    $cg = $null; $cgState = @{ crashes = @(); pending_save = @() }
     try {
         . (Join-Path $PSScriptRoot "crashguard.ps1")
         $cg = Read-CrashGuardConfig (Join-Path $PSScriptRoot "crashguard.json")
@@ -162,20 +183,7 @@ try {
     } catch { Add-Content -Path $LogFile -Value ("{0} crashguard off: {1}" -f (Get-Date).ToString("s"), $_.Exception.Message) }
     try {
         while ($true) {
-            if ($pg -and $pg.enabled -eq $true -and ((Get-Date) - $pgLast).TotalSeconds -ge [double]$pg.check_sec) {
-                $pgLast = Get-Date
-                try { [void](Invoke-PlayGuard $pg $pgState $LogFile) } catch { Add-Content -Path $LogFile -Value ("{0} playguard error {1}" -f (Get-Date).ToString("s"), $_.Exception.Message) }
-            }
-            if ($cg -and $cg.enabled -eq $true -and ((Get-Date) - $cgLast).TotalSeconds -ge [double]$cg.check_sec) {
-                $cgLast = Get-Date
-                try { [void](Invoke-CrashGuard $cg $cgState $LogFile "") } catch { Add-Content -Path $LogFile -Value ("{0} crashguard error {1}" -f (Get-Date).ToString("s"), $_.Exception.Message) }
-            }
-            try {
-                $r = Invoke-Tidy $list
-                foreach ($t in $r.closed) {
-                    Add-Content -Path $LogFile -Value ("{0} {1} '{2}'" -f (Get-Date).ToString("s"), $(if ($Minimize) { "minimized" } else { "closed" }), $t)
-                }
-            } catch { Add-Content -Path $LogFile -Value ("{0} error {1}" -f (Get-Date).ToString("s"), $_.Exception.Message) }
+            Invoke-WatcherTick $cg $cgState $pg $pgState $schedule $list
             Start-Sleep -Seconds ([Math]::Max(1, $IntervalSec))
         }
     } finally {

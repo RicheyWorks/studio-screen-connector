@@ -136,11 +136,27 @@ The audit never stops Play, saves, or closes anything. Suite: `harness/audit_sui
 
 Runs inside `tidy.ps1 -Watch` every `check_sec`. No popups for the user:
 
+- **Fresh GPU fatal evidence:** a bounded, timestamped log observation tied to
+  the editor PID/start latches an owner-recovery hold. The watcher checks
+  crashguard before PlayGuard and suppresses both PlayGuard and window cleanup
+  while that hold remains, including ticks between crashguard observations and
+  failed observations. Only a verified replacement editor lifetime releases it.
 - **Restore Packages dialog** (editor alive, window title `Restore Packages`): Slate exposes no controls and a hidden editor ignores posted input, so it kills the editor + crash reporter, restores, relaunches hidden.
 - **Crash** (no editor, `CrashReportClient(Editor)` alive, editor log tail shows `Critical error`/`Fatal error`/`DXGI_ERROR`): kills the crash reporter (nothing is sent), posts `BLOCKED` on the team link, restores, relaunches hidden via WMI `ShowWindow=0`. From the 2nd crash inside `crash_window_min` it adds `-d3d11`. Never relaunches while UnrealBuildTool/AutomationTool runs or while an editor is up.
 - **Restore** happens before launch: UE 5.8 has no auto-restore setting (`PackageAutoSaver.cpp` only has `-AutoDeclinePackageRecovery` and `-unattended`, and both discard the restore list). Every `PackageRestoreData.json` entry (UTF-16) is copied from `Saved/Autosaves` over `Content`, overwritten files are backed up under `backup_dir/crashguard-<stamp>`, the json is renamed, and package names go to `tidy.log`. When the bridge answers again, each restored package is loaded and saved through `execute_python`, and a note is posted.
 - `set_crash_privacy`: writes `[/Script/UnrealEd.CrashReportsPrivacySettings] bSendUnattendedBugReports=False` to the project's `Config/DefaultEditorSettings.ini`.
 - Manual: `.\crashguard.ps1 -RestoreOnly` (editor closed) restores autosaves without launching.
+
+Pending restored packages clear only after an OK bridge response contains one
+complete successful save receipt and its loaded/requested counts both match the
+original pending list. Partial loads, failed saves, conflicting receipts and
+unavailable replies retain that list for recovery.
+
+The focused `harness.gpu_evidence_suite.closure_checks` validation extracts only
+the watcher/guard function ASTs and mocks external actions. Its 16 scenarios
+passed on Windows PowerShell5.1 and PowerShell7 during the 2026-10-15 closeout.
+The installed watcher was not changed or activated; native acceptance and the
+previously deferred full recovery suite remain separate work.
 
 ## Unreal capture while minimized (bridge fallback)
 
