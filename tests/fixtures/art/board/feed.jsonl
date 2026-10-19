@@ -1,0 +1,2 @@
+{"ts": "2026-10-18T20:04:50", "event": "SHIPPED", "asset": "Prop_Crate_01", "tris": 312}
+{"ts": "2026-10-18T20:05:10", "event": "REJECTED", "asset": "Prop_Bad_01", "check": "tris over budget"}
