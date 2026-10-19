@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-"""studio-screen-connector / statuspage.py: a static "what are the bots building" page for the studio owner.
+r"""studio-screen-connector / statuspage.py: a static "what are the bots building" page for the studio owner.
 
 Reads files only (no server, no broker, never posts to the team link, never sends input to any app):
   * <art>/STATUS.md and <art>/feed.jsonl     the art-queue board (counts, who is waited on, last events)
