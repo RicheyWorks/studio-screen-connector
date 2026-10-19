@@ -146,6 +146,17 @@ def summarize_link(msgs, now, limit_feed=25, limit_bots=30):
     return {"bots": bots[:limit_bots], "feed": feed, "last_id": (msgs[-1].get("id") if msgs else None)}
 
 
+def fmt_event(ev):
+    """One short line per art-queue event: time, event, asset, and why/check when there is one (no tracebacks)."""
+    if not isinstance(ev, dict):
+        return redact(str(ev))[:200]
+    parts = [str(ev.get(k)) for k in ("at", "ts", "event", "asset") if ev.get(k) not in (None, "", "-")]
+    for k in ("why", "check", "status", "error"):
+        if ev.get(k):
+            parts.append("%s: %s" % (k, str(ev[k]).splitlines()[0][:120]))
+            break
+    return redact(" | ".join(parts))[:300]
+
 def port_up(port, timeout=0.4):
     try:
         s = socket.create_connection(("127.0.0.1", port), timeout=timeout)
@@ -191,7 +202,7 @@ def gather(art_dir, link_log, live_dir, now=None, ports=True):
     art["stale"] = bool(upd is None or (now - upd).total_seconds() > 1800)
     events = []
     for e in tail_jsonl(os.path.join(art_dir, "feed.jsonl"), 60000)[-12:]:
-        events.append(redact(json.dumps(e, sort_keys=True))[:300])
+        events.append(fmt_event(e))
     link = summarize_link(tail_visible(link_log), now)
     shots, state = read_live(live_dir, now)
     health = {}

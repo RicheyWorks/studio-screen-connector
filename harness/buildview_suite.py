@@ -131,6 +131,8 @@ def run():
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
+    add("fmt_event is one short line without tracebacks", statuspage.fmt_event({"at": "t", "event": "error", "asset": "A", "trace": "Traceback\\nFile x"}) == "t | error | A", statuspage.fmt_event({"at": "t", "event": "error", "asset": "A", "trace": "x"}))
+
     # --- status-capture.ps1 with a stub capture.ps1 ---
     d = tempfile.mkdtemp()
     try:
