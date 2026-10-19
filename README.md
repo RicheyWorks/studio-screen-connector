@@ -161,3 +161,19 @@ previously deferred full recovery suite remain separate work.
 ## Unreal capture while minimized (bridge fallback)
 
 `capture.ps1 -Op capture -Target unreal` falls back to the Unreal bridge (127.0.0.1:9877, `execute_python`) when the editor window is minimized, hidden or renders blank. It spawns a transient SceneCapture2D at the level-viewport camera, renders one frame to an RGBA8 render target, exports it with `RenderingLibrary.export_render_target` to `screens\unreal-bridge-<stamp>.png`, destroys the actor and polls for the file. No window is shown or restored, no editor is launched, nothing is saved; `newly_dirty` in the output lists any package the capture dirtied (expected empty). `-Method window` disables the fallback, `-Method bridge` forces it. Suite: `harness.capture_bridge_suite` (fake bridge).
+
+## Build view: see what the bots are building
+
+A static page for the studio owner, no server and no broker. `status-loop.ps1` (every 60 s) runs `status-capture.ps1` (reuses `capture.ps1`, so the same allowlist and denylist apply) and `statuspage.py`, which writes `bot-team\BOARD\live\index.html`, `status.json` and the screenshots `blender.png` / `unreal.png`. The page shows bridge health (Blender 9876, Unreal 9877, team link 9890), the art-queue counts and last events (`art\STATUS.md`, `feed.jsonl`), the last post of every bot and the recent CLAIM / DONE / STATUS lines from the team-link log (tail only; keys and passwords are redacted, HTML is escaped), and the live screenshots. It reads files and windows only: it never posts to the link, never sends input, never uploads.
+
+```powershell
+.\open-build-view.ps1          # or double-click open-build-view.cmd: refresh once, start the hidden 60 s refresher, open index.html
+.\status-loop.ps1 -Once        # one refresh only
+.\status-loop.ps1 -Stop        # stop the refresher
+```
+
+A minimized or hidden window cannot be read with PrintWindow, so the previous image stays (marked STALE) and the page says why. `-BlenderBridge` (on by default in `open-build-view.ps1`) reads a minimized Blender's 3D viewport through bridge 9876. `-UnrealBridge` reads a minimized editor through the Unreal bridge (the transient SceneCapture2D fallback of `capture.ps1`), so it is off unless a bot holds an editor turn. Suite: `harness.buildview_suite`.
+
+## Blender start splash off
+
+Blender 4.3 has no command-line switch for the start splash; it is the user preference `show_splash`. `set-blender-prefs.ps1` runs `blender -b --python blender_prefs.py` (user prefs are loaded, never `--factory-startup`), which sets `preferences.view.show_splash = False` and saves `userpref.blend`. It is idempotent and skips the background run while a Blender is open (`-Live` sets and saves the pref in the running session through bridge 9876 instead). Any Blender launcher should call it first; the local-only `start-blender-bridge.ps1` does.
